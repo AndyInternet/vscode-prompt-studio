@@ -1,0 +1,126 @@
+{
+  "name": "prompt-studio",
+  "displayName": "Prompt Studio",
+  "description": "Run prompts to major LLMs (OpenAI, Anthropic, Google), write tests, and compare results directly in VS Code",
+  "version": "0.1.0",
+  "publisher": "your-publisher-name",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Testing",
+    "Machine Learning"
+  ],
+  "activationEvents": [
+    "onCommand:prompt-studio.runPrompt",
+    "onCommand:prompt-studio.createTest",
+    "onCommand:prompt-studio.runTests",
+    "onCommand:prompt-studio.compareResults"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "prompt-studio",
+          "title": "Prompt Studio",
+          "icon": "$(rocket)"
+        }
+      ]
+    },
+    "views": {
+      "prompt-studio": [
+        {
+          "type": "webview",
+          "id": "prompt-studio.sidebarView",
+          "name": "Prompt Runner"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "prompt-studio.runPrompt",
+        "title": "Prompt Studio: Run Prompt"
+      },
+      {
+        "command": "prompt-studio.createTest",
+        "title": "Prompt Studio: Create Test"
+      },
+      {
+        "command": "prompt-studio.runTests",
+        "title": "Prompt Studio: Run Tests"
+      },
+      {
+        "command": "prompt-studio.compareResults",
+        "title": "Prompt Studio: Compare Results"
+      }
+    ],
+    "configuration": {
+      "title": "Prompt Studio",
+      "properties": {
+        "promptStudio.openai.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI API Key"
+        },
+        "promptStudio.anthropic.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Anthropic API Key"
+        },
+        "promptStudio.google.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Google AI API Key"
+        },
+        "promptStudio.defaultModel": {
+          "type": "string",
+          "default": "gpt-5",
+          "enum": [
+            "gpt-5",
+            "gpt-5-mini",
+            "gpt-5-nano",
+            "gpt-4o",
+            "gpt-4o-mini",
+            "o3",
+            "o4-mini",
+            "claude-opus-4-5-20251101",
+            "claude-sonnet-4-5-20250929",
+            "claude-haiku-4-5-20251001",
+            "claude-sonnet-4-20250514",
+            "gemini-3-pro",
+            "gemini-2.5-pro",
+            "gemini-2.5-flash"
+          ],
+          "description": "Default model to use"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "test": "node ./out/test/runTest.js",
+    "lint": "echo 'Linting...'"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^24.10.1",
+    "@types/vscode": "^1.106.1",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
+    "esbuild": "^0.27.0",
+    "glob": "^13.0.0",
+    "mocha": "^11.7.5",
+    "typescript": "^5.9.3",
+    "vscode-test": "^1.6.1"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.0",
+    "@google/generative-ai": "^0.24.1",
+    "openai": "^6.9.1"
+  }
+}
