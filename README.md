@@ -56,20 +56,18 @@ A Visual Studio Code extension for running prompts to major LLM providers (OpenA
    git clone <repository-url>
    cd prompt-studio
    npm install
-   npm run compile
    ```
 
 2. Package the extension
 
    ```bash
-   # Install vsce if you haven't already
-   npm install -g @vscode/vsce
-
-   # Package the extension
-   vsce package
+   # Package the extension (this bundles all dependencies automatically)
+   npx @vscode/vsce package
    ```
 
    This creates a `prompt-studio-0.1.0.vsix` file
+
+   > **Note**: The packaging step uses esbuild to bundle all dependencies (OpenAI, Anthropic, Google AI SDKs) into a single file. This is required because VS Code extensions don't include `node_modules` by default.
 
 3. Install the VSIX in VS Code
 
@@ -213,7 +211,14 @@ You can also configure these in your `settings.json`:
 ### Building
 
 ```bash
+# TypeScript compilation only (for type checking)
 npm run compile
+
+# Bundle with esbuild (required for packaging)
+npm run esbuild
+
+# Watch mode for development
+npm run esbuild-watch
 ```
 
 ### Testing
@@ -282,9 +287,11 @@ The test suite includes:
 ### Packaging
 
 ```bash
-npm install -g vsce
-vsce package
+# Package the extension (automatically runs esbuild via prepublish script)
+npx @vscode/vsce package
 ```
+
+This bundles the extension with all dependencies into a single `.vsix` file.
 
 ## Requirements
 

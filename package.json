@@ -3,21 +3,26 @@
   "displayName": "Prompt Studio",
   "description": "Run prompts to major LLMs (OpenAI, Anthropic, Google), write tests, and compare results directly in VS Code",
   "version": "0.1.0",
-  "publisher": "your-publisher-name",
+  "publisher": "AndyInternet",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AndyInternet/vscode-prompt-studio"
+  },
   "engines": {
-    "vscode": "^1.85.0"
+    "vscode": "^1.106.0"
   },
   "categories": [
     "Testing",
     "Machine Learning"
   ],
   "activationEvents": [
+    "onView:prompt-studio.sidebarView",
     "onCommand:prompt-studio.runPrompt",
     "onCommand:prompt-studio.createTest",
     "onCommand:prompt-studio.runTests",
     "onCommand:prompt-studio.compareResults"
   ],
-  "main": "./out/extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -98,9 +103,12 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run esbuild-base -- --minify",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
+    "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
+    "esbuild": "npm run esbuild-base -- --sourcemap",
+    "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
     "pretest": "npm run compile && npm run lint",
     "test": "node ./out/test/runTest.js",
     "lint": "echo 'Linting...'"

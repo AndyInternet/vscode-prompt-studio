@@ -4,6 +4,16 @@ import { LLMProviderManager, PromptRequest } from "./llmProviders";
 import { HistoryManager } from "./historyManager";
 import { getModelsForDisplay } from "./models";
 
+function getNonce() {
+  let text = "";
+  const possible =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  for (let i = 0; i < 32; i++) {
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+  }
+  return text;
+}
+
 export class SidebarProvider implements vscode.WebviewViewProvider {
   private _view?: vscode.WebviewView;
   private currentFilePath: string = "";
@@ -428,11 +438,13 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   }
 
   private _getHtmlForWebview(webview: vscode.Webview) {
+    const nonce = getNonce();
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';">
     <title>Prompt Studio</title>
     <style>
         * {
@@ -1108,12 +1120,17 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         </div>
     </div>
 
-    <script>
+    <script nonce="${nonce}">
         const vscode = acquireVsCodeApi();
-        
+
+        // All state variables declared upfront
         let currentFileContent = '';
         let currentFilePath = '';
         let availableModels = [];
+        let historyEntries = [];
+        let selectedHistoryEntry = null;
+        let additionalFiles = [];
+        let openFiles = [];
 
         // Restore previous state
         const previousState = vscode.getState() || {};
@@ -1122,41 +1139,72 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         vscode.postMessage({ type: 'getCurrentFile' });
         vscode.postMessage({ type: 'getAvailableModels' });
 
-        // Listen for messages from extension
+        // Single consolidated message handler for all extension messages
         window.addEventListener('message', event => {
             const message = event.data;
-            
+
             switch (message.type) {
                 case 'currentFile':
                     currentFileContent = message.content;
                     currentFilePath = message.filePath;
-                    document.getElementById('currentFile').textContent = message.fileName || 'No file open';
+                    // Update dropdown selection
+                    const fileSelect = document.getElementById('currentFileSelect');
+                    if (fileSelect) {
+                        fileSelect.value = message.filePath;
+                    }
                     break;
-                    
+
                 case 'availableModels':
                     availableModels = message.models;
                     updateModelSelect(message.models);
                     break;
-                    
+
                 case 'loading':
                     const loadingIndicator = document.getElementById('loadingIndicator');
-                    const runButton = document.getElementById('runButton');
+                    const runBtn = document.getElementById('runButton');
                     if (message.loading) {
                         loadingIndicator.style.display = 'block';
-                        runButton.disabled = true;
+                        runBtn.disabled = true;
                         document.getElementById('responseContainer').classList.remove('visible');
                     } else {
                         loadingIndicator.style.display = 'none';
-                        runButton.disabled = false;
+                        runBtn.disabled = false;
                     }
                     break;
-                    
+
                 case 'response':
                     displayResponse(message.response);
                     break;
-                    
+
                 case 'error':
                     displayError(message.error);
+                    break;
+
+                case 'history':
+                    historyEntries = message.entries;
+                    populateHistoryDropdown(message.entries);
+                    break;
+
+                case 'openFiles':
+                    openFiles = message.files;
+                    populateCurrentFileSelect(message.files);
+                    break;
+
+                case 'filesAdded':
+                    handleFilesAdded(message.files);
+                    break;
+
+                case 'apiKeys':
+                    document.getElementById('openaiKeyInput').value = message.keys.openai || '';
+                    document.getElementById('anthropicKeyInput').value = message.keys.anthropic || '';
+                    document.getElementById('googleKeyInput').value = message.keys.google || '';
+                    break;
+
+                case 'apiKeysSaved':
+                    if (message.success) {
+                        closeConfigModal();
+                        vscode.postMessage({ type: 'getAvailableModels' });
+                    }
                     break;
             }
         });
@@ -1286,21 +1334,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
         // Configuration Modal Functions
         function openConfigModal() {
-            // Request current API keys
+            // Request current API keys - response handled in main message handler
             vscode.postMessage({ type: 'getApiKeys' });
-            
-            // Listen for keys response
-            const keyListener = (event) => {
-                const message = event.data;
-                if (message.type === 'apiKeys') {
-                    document.getElementById('openaiKeyInput').value = message.keys.openai || '';
-                    document.getElementById('anthropicKeyInput').value = message.keys.anthropic || '';
-                    document.getElementById('googleKeyInput').value = message.keys.google || '';
-                    window.removeEventListener('message', keyListener);
-                }
-            };
-            window.addEventListener('message', keyListener);
-            
             document.getElementById('configModal').classList.add('visible');
         }
 
@@ -1314,31 +1349,15 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 anthropic: document.getElementById('anthropicKeyInput').value,
                 google: document.getElementById('googleKeyInput').value
             };
-            
+
             vscode.postMessage({
                 type: 'saveApiKeys',
                 keys: keys
             });
-            
-            // Listen for save confirmation
-            const saveListener = (event) => {
-                const message = event.data;
-                if (message.type === 'apiKeysSaved') {
-                    if (message.success) {
-                        closeConfigModal();
-                        // Refresh models
-                        vscode.postMessage({ type: 'getAvailableModels' });
-                    }
-                    window.removeEventListener('message', saveListener);
-                }
-            };
-            window.addEventListener('message', saveListener);
+            // Response handled in main message handler
         }
 
         // Tab Switching
-        let historyEntries = [];
-        let selectedHistoryEntry = null;
-
         function switchTab(tabName) {
             // Update tab buttons
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
@@ -1372,14 +1391,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             vscode.postMessage({ type: 'clearHistory', filePath: currentFilePath });
             closeClearHistoryModal();
         }
-
-        // Listen for history message
-        window.addEventListener('message', event => {
-            if (event.data.type === 'history') {
-                historyEntries = event.data.entries;
-                populateHistoryDropdown(event.data.entries);
-            }
-        });
 
         function populateHistoryDropdown(entries) {
             const select = document.getElementById('historyVersionSelect');
@@ -1517,39 +1528,17 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         // Close modal when clicking outside
         document.addEventListener('click', (e) => {
             const configModal = document.getElementById('configModal');
-            const historyModal = document.getElementById('historyModal');
+            const clearHistoryModal = document.getElementById('clearHistoryModal');
             if (e.target === configModal) {
                 closeConfigModal();
             }
-            if (e.target === historyModal) {
-                closeHistoryModal();
+            if (e.target === clearHistoryModal) {
+                closeClearHistoryModal();
             }
         });
 
-        // Multiple File Management
-        let additionalFiles = [];
-        let openFiles = [];
-
-        // Request open files on load
+        // Multiple File Management - Request open files on load
         vscode.postMessage({ type: 'getOpenFiles' });
-
-        // Update currentFileName when currentFile message is received
-        window.addEventListener('message', event => {
-            if (event.data.type === 'currentFile') {
-                currentFileContent = event.data.content;
-                currentFilePath = event.data.filePath;
-                // Update dropdown selection
-                const select = document.getElementById('currentFileSelect');
-                if (select) {
-                    select.value = event.data.filePath;
-                }
-            } else if (event.data.type === 'openFiles') {
-                openFiles = event.data.files;
-                populateCurrentFileSelect(event.data.files);
-            } else if (event.data.type === 'filesAdded') {
-                handleFilesAdded(event.data.files);
-            }
-        });
 
         function populateCurrentFileSelect(files) {
             const select = document.getElementById('currentFileSelect');
