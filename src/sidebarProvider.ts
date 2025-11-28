@@ -4,16 +4,6 @@ import { LLMProviderManager, PromptRequest } from "./llmProviders";
 import { HistoryManager } from "./historyManager";
 import { getModelsForDisplay } from "./models";
 
-function getNonce() {
-  let text = "";
-  const possible =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  for (let i = 0; i < 32; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
-  }
-  return text;
-}
-
 export class SidebarProvider implements vscode.WebviewViewProvider {
   private _view?: vscode.WebviewView;
   private currentFilePath: string = "";
@@ -438,13 +428,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   }
 
   private _getHtmlForWebview(webview: vscode.Webview) {
-    const nonce = getNonce();
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
     <title>Prompt Studio</title>
     <style>
         * {
@@ -1120,7 +1109,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         </div>
     </div>
 
-    <script nonce="${nonce}">
+    <script>
         const vscode = acquireVsCodeApi();
 
         // All state variables declared upfront
